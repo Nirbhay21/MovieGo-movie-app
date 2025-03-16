@@ -3,12 +3,7 @@ export default {
   corePlugins: {
     preflight: false,
   },
-  content: {
-    files: [
-      "./index.html",
-      "./src/**/*.{js,ts,jsx,tsx}",
-    ]
-  },
+  content: ["./src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
       fontFamily: {
