@@ -1,5 +1,6 @@
 /* Font loading strategy */
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap&text=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
+@import "tailwindcss";
 
 @font-face {
   font-family: 'Nunito';
@@ -9,7 +10,6 @@
   src: local('Nunito');
 }
 
-@import "tailwindcss";
 
 @keyframes pulse-custom {
     50% {
