@@ -1,0 +1,66 @@
+/* Font loading strategy */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap&text=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
+
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: local('Nunito');
+}
+
+@import "tailwindcss";
+
+@keyframes pulse-custom {
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes skeleton-loading-diagonal {
+    0% {
+        transform: translateX(-100%) skew(20deg);
+    }
+
+    100% {
+        transform: translateX(100%) skewX(20deg);
+    }
+}
+
+@theme {
+    --font-nunito: "Nunito", system-ui, -apple-system, sans-serif;
+    --color-gradient-primary: #193cb8;
+    --color-gradient-secondary: #53eafd;
+    --animate-pulse: pulse 1s infinite ease; 
+    --animate-skeleton-diagonal: skeleton-loading-diagonal 750ms infinite linear;
+}
+
+@layer utilities {
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .animate-skeleton-diagonal {
+        animation: var(--animate-skeleton-diagonal);
+    }
+}
+
+/* Critical styles */
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.5s ease-out;
+}
+
+body {
+    @apply bg-neutral-900 font-nunito text-neutral-300;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+}

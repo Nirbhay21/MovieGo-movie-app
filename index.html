@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="MovieGo - Your one-stop destination for movies and TV shows" />
+    <meta name="theme-color" content="#1a1a1a" />
+    
+    <!-- DNS and Connection Resource Hints -->
+    <link rel="preconnect" href="https://api.themoviedb.org" crossorigin="anonymous" />
+    <link rel="preconnect" href="https://image.tmdb.org" crossorigin="anonymous" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="anonymous" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    
+    <!-- App Icon -->
+    <link rel="icon" type="image/svg+xml" href="/moviego.svg" />
+    
+    <!-- Critical CSS -->
+    <style>
+      /* Critical styles for immediate render */
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        background-color: rgb(23 23 23);
+        color: rgb(212 212 212);
+        font-family: system-ui, -apple-system, sans-serif;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+      }
+      #root {
+        min-height: 100vh;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      .animate-spin {
+        animation: spin 1s linear infinite;
+      }
+    </style>
+
+    <!-- Main Styles -->
+    <link rel="stylesheet" href="/src/index.css" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="/src/index.css"></noscript>
+
+    <!-- Module Preloads -->
+    <link
+      rel="modulepreload"
+      href="/src/main.jsx"
+      as="script"
+      crossorigin="anonymous"
+    />
+    
+    <!-- Critical CSS -->
+    <style>
+      body {
+        margin: 0;
+        background-color: rgb(23 23 23);
+        color: rgb(212 212 212);
+        font-family: "Nunito", system-ui, -apple-system, sans-serif;
+      }
+      #root {
+        min-height: 100vh;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      .animate-spin {
+        animation: spin 1s linear infinite;
+      }
+    </style>
+    
+    <title>MovieGo - Watch Movies & TV Shows</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
