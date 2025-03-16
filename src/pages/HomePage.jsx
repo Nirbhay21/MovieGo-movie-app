@@ -3,6 +3,7 @@ import { useGetNowPlayingQuery, useGetOnAirTvShowsQuery, useGetPopularTvShowsQue
 import { selectQueryResults } from '../config/utilityFunctions';
 import HorizontalScrollCardSkeleton from '../skeletons/HorizontalScrollCardSkeleton';
 import BannerHomeSkeleton from '../skeletons/HomeBannerSkeleton';
+import PageLoader from '../components/PageLoader';
 
 // Optimized lazy loading with preload hints
 const BannerHome = React.lazy(() => import(/* webpackPrefetch: true */ '../components/BannerHome'));
