@@ -5,11 +5,23 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [
     react({
+      include: '**/*.jsx',
       jsxRuntime: 'automatic',
-      include: ['src/**/*.jsx', 'src/**/*.tsx'],
+      fastRefresh: true
     }),
     tailwindcss(),
   ],
+  resolve: {
+    extensions: ['.mjs', '.js', '.jsx', '.json']
+  },
+  optimizeDeps: {
+    force: true,
+    esbuildOptions: {
+      loader: {
+        '.js': 'jsx'
+      }
+    }
+  },
   server: {
     host: "0.0.0.0",
     fs: {
