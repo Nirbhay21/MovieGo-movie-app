@@ -73,14 +73,27 @@ const baseQuery = fetchBaseQuery({
                 throw new Error('Invalid request: URL is missing');
             }
 
-            // Get API authentication details
+            // Get API authentication details with enhanced error logging
             const credentials = {
-                apiKey: import.meta.env.VITE_API_KEY,
-                accessToken: import.meta.env.VITE_API_ACCESS_TOKEN
+                apiKey: import.meta.env.VITE_API_KEY || '',
+                accessToken: import.meta.env.VITE_API_ACCESS_TOKEN || ''
             };
 
+            // Log environment info in development
+            if (import.meta.env.DEV) {
+                console.debug('Environment:', {
+                    mode: import.meta.env.MODE,
+                    hasApiKey: Boolean(credentials.apiKey),
+                    hasAccessToken: Boolean(credentials.accessToken)
+                });
+            }
+
             if (!credentials.apiKey || !credentials.accessToken) {
-                throw new Error('Missing API credentials');
+                const error = new Error(
+                    'API credentials not found. Ensure VITE_API_KEY and VITE_API_ACCESS_TOKEN are set in your environment.'
+                );
+                console.error('API Authentication Error:', error);
+                throw error;
             }
 
             // Create full URL with API key
