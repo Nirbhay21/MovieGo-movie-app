@@ -11,21 +11,9 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        // Add each file individually with error handling
-        const cachePromises = STATIC_CACHE_URLS.map(async url => {
-          try {
-            return await cache.add(new Request(url, { cache: 'reload' }));
-          } catch (error) {
-            console.error(`Failed to cache ${url}:`, error);
-            return await Promise.resolve();
-          }
-        });
-        return Promise.all(cachePromises);
+        return cache.addAll(STATIC_CACHE_URLS);
       })
       .then(() => self.skipWaiting())
-      .catch(error => {
-        console.error('Service Worker installation failed:', error);
-      })
   );
 });
 
@@ -41,49 +29,45 @@ self.addEventListener('activate', event => {
         );
       })
       .then(() => {
-        // Take control of all pages immediately
         self.clients.claim();
       })
   );
 });
 
-// Fetch strategy: Cache first, then network
+// Network first, falling back to cache
 self.addEventListener('fetch', event => {
-  // Only cache GET requests
-  if (event.request.method !== 'GET') return;
-
-  // Don't cache API calls or image requests
-  if (event.request.url.includes('api.themoviedb.org') || 
-      event.request.url.includes('.jpg')) {
+  // Skip cross-origin requests
+  if (!event.request.url.startsWith(self.location.origin)) {
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request)
-      .then(cached => {
-        const networked = fetch(event.request)
-          .then(response => {
-            const cacheCopy = response.clone();
-            
-            // Add to cache if response is valid
-            if (response.ok) {
-              caches.open(CACHE_NAME)
-                .then(cache => cache.put(event.request, cacheCopy))
-                .catch(error => {
-                  console.error('Failed to update cache:', error);
-                });
-            }
-            
-            return response;
-          })
-          .catch(() => {
-            // Fallback for offline HTML pages
-            if (event.request.headers.get('accept')?.includes('text/html')) {
-              return caches.match('./');
-            }
-          });
+  // Skip API calls
+  if (event.request.url.includes('api.themoviedb.org')) {
+    return;
+  }
 
-        return cached || networked;
+  // Handle HTML navigation requests
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
+
+  // For other requests, try network first, fall back to cache
+  event.respondWith(
+    fetch(event.request)
+      .then(response => {
+        // Cache successful responses
+        if (response.ok) {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseClone);
+          });
+        }
+        return response;
       })
+      .catch(() => caches.match(event.request))
   );
 });
