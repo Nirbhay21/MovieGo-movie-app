@@ -12,21 +12,39 @@ const CACHE_DURATIONS = {
     default: 120         // Default - 2 minutes
 };
 
-// Enhanced error handler with accessibility
+// Enhanced error handler with network-specific handling
 const handleApiError = (error) => {
-    const errorDetails = {
-        status: error?.status,
-        message: error?.data?.message || 'Unknown error occurred',
-        timestamp: new Date().toISOString(),
-        endpoint: error?.endpoint,
-        ariaLabel: `Error: ${error?.data?.message || 'Unknown error occurred'}`
-    };
+    let message = 'Unknown error occurred';
+    let retryable = true;
 
-    console.error('[API Error]:', errorDetails);
-    return errorDetails;
+    if (error?.status === 401) {
+        message = 'Authentication failed. Please try again later.';
+        retryable = false;
+    } else if (error?.status === 403) {
+        message = 'Access denied. Please try again later.';
+        retryable = false;
+    } else if (error?.status === 429) {
+        message = 'Too many requests. Please try again in a moment.';
+        retryable = true;
+    } else if (!navigator.onLine) {
+        message = 'No internet connection. Please check your network.';
+        retryable = true;
+    } else if (error.name === 'NetworkError' || error.name === 'FetchError') {
+        message = 'Network error. Please check your connection.';
+        retryable = true;
+    }
+
+    console.error('[API Error]:', {
+        status: error?.status,
+        message,
+        endpoint: error?.endpoint,
+        retryable
+    });
+
+    return { message, retryable };
 };
 
-// Optimized base query with timeout
+// Optimized base query with CORS and network handling
 const baseQuery = fetchBaseQuery({
     baseUrl: "https://api.themoviedb.org/3",
     prepareHeaders: (headers) => {
@@ -34,10 +52,18 @@ const baseQuery = fetchBaseQuery({
         headers.set('Accept', 'application/json');
         return headers;
     },
-    timeout: 10000,
+    fetchFn: (...args) => {
+        return fetch(...args).then(response => {
+            if (response.status === 429) {
+                // Add delay for rate limiting
+                return new Promise(resolve => setTimeout(() => resolve(response), 2000));
+            }
+            return response;
+        });
+    }
 });
 
-// Enhanced query with retry logic and exponential backoff
+// Enhanced query with optimized retry logic
 const enhancedBaseQuery = retry(async (args, api, extraOptions) => {
     try {
         if (typeof args === "object") {
@@ -55,19 +81,28 @@ const enhancedBaseQuery = retry(async (args, api, extraOptions) => {
                 ...result.error,
                 endpoint: typeof args === 'string' ? args : args.url
             });
+            
+            if (!error.retryable) {
+                retry.fail(result.error);
+            }
+            
             return { error };
         }
 
         return result;
     } catch (error) {
-        return { error: handleApiError(error) };
+        const handled = handleApiError(error);
+        if (!handled.retryable) {
+            retry.fail(error);
+        }
+        return { error: handled };
     }
 }, {
     maxRetries: 3,
-    backoff: (attempt) => Math.min(1000 * (2 ** attempt), 30000)
+    backoff: attempt => Math.min(1000 * (2 ** attempt), 30000)
 });
 
-// Add accessibility metadata to media items
+// Rest of your code remains the same...
 const addAccessibilityMetadata = (data, type = '') => {
     if (!data) return data;
 
@@ -78,11 +113,9 @@ const addAccessibilityMetadata = (data, type = '') => {
             role: 'article'
         }));
         
-        // Add collection metadata
         data.ariaLabel = `${type} collection with ${data.results.length} items`;
         data.role = 'feed';
     } else {
-        // Single item metadata
         data.ariaLabel = `${data.title || data.name || 'Untitled'} ${data.release_date ? `released ${data.release_date}` : ''}`;
         data.role = 'article';
     }
@@ -218,7 +251,6 @@ export const api = createApi({
                 const uniqueNewItems = newItems.results.filter(item => !existingIds.has(item.id));
                 currentCache.results.push(...uniqueNewItems);
 
-                // Update accessibility metadata for the merged collection
                 addAccessibilityMetadata(currentCache, 'discovered media');
             },
             forceRefetch: ({ currentArg, previousArg }) => {
@@ -248,7 +280,6 @@ export const api = createApi({
                 const uniqueNewItems = newItems.results.filter(item => !existingIds.has(item.id));
                 currentCache.results.push(...uniqueNewItems);
 
-                // Update accessibility metadata for the merged collection
                 addAccessibilityMetadata(currentCache, 'search results');
             },
             forceRefetch: ({ currentArg, previousArg }) => {
