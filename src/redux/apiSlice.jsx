@@ -45,26 +45,55 @@ return { message, retryable };
 };
 
 // Optimized base query with CORS and network handling
-const baseQuery = fetchBaseQuery({
-    baseUrl: "https://api.themoviedb.org/3",
-    prepareHeaders: (headers) => {
-        headers.set("Authorization", `Bearer ${import.meta.env.VITE_API_ACCESS_TOKEN}`);
-        headers.set('Accept', 'application/json');
-        headers.set('Origin', window.location.origin);
-        headers.set('Access-Control-Request-Method', 'GET');
-        return headers;
-    },
-    credentials: 'omit',
-    mode: 'cors',
-    fetchFn: (...args) => {
-        return fetch(...args).then(response => {
-            if (response.status === 429) {
-                // Add delay for rate limiting
-                return new Promise(resolve => setTimeout(() => resolve(response), 2000));
+const xmlHttpRequestFetch = (url, config) => {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        const fullUrl = "https://api.themoviedb.org/3" + url;
+        
+        xhr.open(config.method || 'GET', fullUrl, true);
+        
+        // Set headers
+        xhr.setRequestHeader("Authorization", `Bearer ${import.meta.env.VITE_API_ACCESS_TOKEN}`);
+        xhr.setRequestHeader("Accept", "application/json");
+        xhr.setRequestHeader("Content-Type", "application/json");
+        
+        // Handle response
+        xhr.onload = () => {
+            if (xhr.status === 429) {
+                setTimeout(() => {
+                    resolve(new Response(xhr.responseText, {
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }));
+                }, 2000);
+                return;
             }
-            return response;
-        });
-    }
+            
+            resolve(new Response(xhr.responseText, {
+                status: xhr.status,
+                statusText: xhr.statusText,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }));
+        };
+        
+        xhr.onerror = () => {
+            reject(new Error('Network request failed'));
+        };
+        
+        // Send request
+        xhr.send(config.body);
+    });
+};
+
+const baseQuery = fetchBaseQuery({
+    baseUrl: "",  // Empty because we're handling the full URL in xmlHttpRequestFetch
+    prepareHeaders: () => new Headers(),  // Headers handled in xmlHttpRequestFetch
+    fetchFn: xmlHttpRequestFetch
 });
 
 // Enhanced query with optimized retry logic
