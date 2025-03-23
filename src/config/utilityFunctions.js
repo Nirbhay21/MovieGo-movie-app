@@ -44,3 +44,39 @@ export const getSkeletonCardsCount = () => {
     if (window.innerWidth < 1440) return 15;
     return 18;
 };
+
+export const getOptimizedImageUrl = (baseUrl, path) => {
+    if (!path) return null;
+
+    // Check if the path already includes the base URL
+    const imagePath = path.startsWith('http') ? path : `${baseUrl}${path}`;
+    
+    // Create a Picture element for next-gen format support
+    const picture = document.createElement('picture');
+    
+    // AVIF source
+    const avifSource = document.createElement('source');
+    avifSource.srcset = `${imagePath}?format=avif`;
+    avifSource.type = 'image/avif';
+    picture.appendChild(avifSource);
+    
+    // WebP source
+    const webpSource = document.createElement('source');
+    webpSource.srcset = `${imagePath}?format=webp`;
+    webpSource.type = 'image/webp';
+    picture.appendChild(webpSource);
+    
+    // Original image as fallback
+    const img = document.createElement('img');
+    img.src = imagePath;
+    picture.appendChild(img);
+    
+    return {
+        picture,
+        sources: {
+            avif: `${imagePath}?format=avif`,
+            webp: `${imagePath}?format=webp`,
+            original: imagePath
+        }
+    };
+};

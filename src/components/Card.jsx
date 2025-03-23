@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { Link } from 'react-router-dom';
-import { formatReleaseDate } from '../config/utilityFunctions';
+import { formatReleaseDate, getOptimizedImageUrl } from '../config/utilityFunctions';
 
 const CARD_DIMENSIONS = {
     width: 232,
@@ -47,21 +47,35 @@ const ReleaseDate = React.memo(({ date, formattedDate }) => (
     </time>
 ));
 
-const PosterImage = React.memo(({ src, alt }) => (
-    <img
-        src={src}
-        loading='lazy'
-        decoding='async'
-        width={CARD_DIMENSIONS.width}
-        height={CARD_DIMENSIONS.height}
-        alt={alt}
-        className='h-full w-full object-cover'
-        style={{
-            contentVisibility: 'auto',
-            containIntrinsicSize: `${CARD_DIMENSIONS.width}px ${CARD_DIMENSIONS.height}px`
-        }}
-    />
-));
+const PosterImage = React.memo(({ src, alt }) => {
+    const optimizedImage = useMemo(() => getOptimizedImageUrl('', src), [src]);
+    
+    return (
+        <picture className='h-full w-full'>
+            <source
+                srcSet={optimizedImage.sources.avif}
+                type="image/avif"
+            />
+            <source
+                srcSet={optimizedImage.sources.webp}
+                type="image/webp"
+            />
+            <img
+                src={optimizedImage.sources.original}
+                loading='lazy'
+                decoding='async'
+                width={CARD_DIMENSIONS.width}
+                height={CARD_DIMENSIONS.height}
+                alt={alt}
+                className='h-full w-full object-cover'
+                style={{
+                    contentVisibility: 'auto',
+                    containIntrinsicSize: `${CARD_DIMENSIONS.width}px ${CARD_DIMENSIONS.height}px`
+                }}
+            />
+        </picture>
+    );
+});
 
 const Card = React.memo(({ data, trending, index, mediaType, posterImageBaseURL }) => {
     const {
@@ -112,7 +126,7 @@ const Card = React.memo(({ data, trending, index, mediaType, posterImageBaseURL 
                 tabIndex="0"
             >
                 <PosterImage
-                    src={posterImageBaseURL + poster_path}
+                    src={`${posterImageBaseURL}${posterImageBaseURL.endsWith('/') ? '' : '/'}${poster_path?.startsWith('/') ? poster_path.slice(1) : poster_path}`}
                     alt={displayName ? `Poster for ${displayName}` : "Movie poster"}
                 />
 

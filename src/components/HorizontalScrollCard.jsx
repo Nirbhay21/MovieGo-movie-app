@@ -7,7 +7,7 @@ import { FALLBACK_IMAGE_BASE_URL, POSTER } from '../config/constants';
 const STYLE_CONSTANTS = {
     section: 'container mx-auto my-10 px-3',
     heading: 'mb-2 text-xl font-bold capitalize text-white lg:text-2xl',
-    container: 'no-scrollbar relative grid grid-flow-col gap-6 overflow-y-visible overflow-x-scroll scroll-smooth transition-all',
+    container: 'no-scrollbar relative grid grid-flow-col gap-6 overflow-y-hidden overflow-x-scroll scroll-smooth transition-all',
     buttonContainer: 'pointer-events-none absolute top-0 hidden h-full w-full items-center justify-between lg:flex',
     buttonBase: 'pointer-events-auto z-10 cursor-pointer rounded-full bg-white p-2 text-black shadow-lg transition-all hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800',
     buttonLeft: '-ml-2',
@@ -88,7 +88,7 @@ const HorizontalScrollCard = ({ cardsData = [], heading, trending, mediaType }) 
                 {heading}
             </h2>
 
-            <div className='relative overflow-visible'>
+            <div className='relative isolate'>
                 <div ref={containerRef}
                     role='list'
                     className={STYLE_CONSTANTS.container}
@@ -99,7 +99,7 @@ const HorizontalScrollCard = ({ cardsData = [], heading, trending, mediaType }) 
                     aria-description="Use arrow keys to scroll left and right, Home to scroll to start, End to scroll to end">
                     {useMemo(() => (
                         filteredCards.map((card, index) => (
-                            <div role="listitem" key={card.id + "heading" + index} className="-m-2 overflow-visible p-2 hover:z-10">
+                            <div role="listitem" key={card.id + "heading" + index} className="relative hover:z-10">
                                 <Card
                                     data={card}
                                     index={index + 1}
