@@ -39,10 +39,6 @@ export default defineConfig({
     }
   },
   server: {
-    host: "0.0.0.0",
-    fs: {
-      strict: false,
-    },
     headers: {
       'Content-Security-Policy': "script-src 'self' 'unsafe-inline' 'unsafe-eval'; object-src 'none';"
     },

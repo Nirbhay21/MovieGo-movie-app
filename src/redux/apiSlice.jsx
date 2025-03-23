@@ -41,7 +41,7 @@ const handleApiError = (error) => {
         retryable
     });
 
-    return { message, retryable };
+return { message, retryable };
 };
 
 // Optimized base query with CORS and network handling
