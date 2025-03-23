@@ -17,6 +17,7 @@ const handleApiError = (error) => {
     let message = 'Unknown error occurred';
     let retryable = true;
 
+    // Enhanced error handling with CORS and CORB specifics
     if (error?.status === 401) {
         message = 'Authentication failed. Please try again later.';
         retryable = false;
@@ -32,68 +33,116 @@ const handleApiError = (error) => {
     } else if (error.name === 'NetworkError' || error.name === 'FetchError') {
         message = 'Network error. Please check your connection.';
         retryable = true;
+    } else if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+        message = 'CORS error: The request was blocked. Please check the API configuration.';
+        retryable = false;
+    } else if (error.message?.includes('CORB blocked')) {
+        message = 'Cross-Origin Read Blocking (CORB) error. Please ensure proper CORS headers are set.';
+        retryable = false;
     }
 
-    console.error('[API Error]:', {
+    // Log the detailed error for debugging
+    // Log detailed error information for debugging
+    const errorDetails = {
+        type: error.name,
+        message: error.message,
         status: error?.status,
-        message,
         endpoint: error?.endpoint,
+        headers: error?.headers,
         retryable
-    });
+    };
+    console.error('[API Error]:', errorDetails);
 
 return { message, retryable };
 };
 
 // Optimized base query with CORS and network handling
-const xmlHttpRequestFetch = (url, config) => {
-    return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        const fullUrl = "https://api.themoviedb.org/3" + url;
-        
-        xhr.open(config.method || 'GET', fullUrl, true);
-        
-        // Set headers
-        xhr.setRequestHeader("Authorization", `Bearer ${import.meta.env.VITE_API_ACCESS_TOKEN}`);
-        xhr.setRequestHeader("Accept", "application/json");
-        xhr.setRequestHeader("Content-Type", "application/json");
-        
-        // Handle response
-        xhr.onload = () => {
-            if (xhr.status === 429) {
-                setTimeout(() => {
-                    resolve(new Response(xhr.responseText, {
-                        status: xhr.status,
-                        statusText: xhr.statusText,
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    }));
-                }, 2000);
-                return;
-            }
-            
-            resolve(new Response(xhr.responseText, {
-                status: xhr.status,
-                statusText: xhr.statusText,
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            }));
-        };
-        
-        xhr.onerror = () => {
-            reject(new Error('Network request failed'));
-        };
-        
-        // Send request
-        xhr.send(config.body);
-    });
-};
+const API_BASE_URL = 'https://api.themoviedb.org/3';
 
 const baseQuery = fetchBaseQuery({
-    baseUrl: "",  // Empty because we're handling the full URL in xmlHttpRequestFetch
-    prepareHeaders: () => new Headers(),  // Headers handled in xmlHttpRequestFetch
-    fetchFn: xmlHttpRequestFetch
+    baseUrl: API_BASE_URL,
+    prepareHeaders: (headers) => {
+        headers.set('Authorization', `Bearer ${import.meta.env.VITE_API_ACCESS_TOKEN}`);
+        return headers;
+    },
+    fetchFn: async (input, init) => {
+        try {
+            // Handle both string and object inputs
+            const inputUrl = typeof input === 'string' ? input : input.url;
+            if (!inputUrl) {
+                throw new Error('Invalid request: URL is missing');
+            }
+
+            // Get API authentication details
+            const credentials = {
+                apiKey: import.meta.env.VITE_API_KEY,
+                accessToken: import.meta.env.VITE_API_ACCESS_TOKEN
+            };
+
+            if (!credentials.apiKey || !credentials.accessToken) {
+                throw new Error('Missing API credentials');
+            }
+
+            // Create full URL with API key
+            let fullUrl;
+            try {
+                fullUrl = new URL(
+                    inputUrl.startsWith('http') ? inputUrl : `${API_BASE_URL}${inputUrl}`
+                );
+                fullUrl.searchParams.set('api_key', credentials.apiKey);
+                fullUrl.searchParams.set('language', 'en-US');
+            } catch (urlError) {
+                throw new Error(`Invalid URL format: ${urlError.message}`);
+            }
+
+            // Set up request options with authentication
+            const initOptions = {
+                ...init,
+                headers: {
+                    ...(init?.headers || {}),
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${credentials.accessToken}`,
+                    'Origin': window.location.origin,
+                    'Sec-Fetch-Site': 'cross-site',
+                    'Sec-Fetch-Mode': 'cors',
+                    'Sec-Fetch-Dest': 'empty'
+                },
+                mode: 'cors',
+                credentials: 'omit',
+                referrerPolicy: 'strict-origin-when-cross-origin'
+            };
+
+            const response = await fetch(fullUrl, initOptions);
+
+            // Enhanced error handling with detailed feedback
+            if (response.status === 401) {
+                throw new Error('Authentication failed. Please check your API access token.');
+            }
+
+            if (response.status === 403) {
+                throw new Error('Access forbidden. Please verify your API key permissions.');
+            }
+
+            if (response.status === 429) {
+                console.warn('Rate limit exceeded, retrying after delay...');
+                return new Promise(resolve => setTimeout(() => resolve(response), 2000));
+            }
+
+            if (!response.ok) {
+                const errorBody = await response.json().catch(() => ({}));
+                throw new Error(
+                    errorBody.status_message ||
+                    `API Error (${response.status}): ${response.statusText}`
+                );
+            }
+
+            return response;
+        } catch (error) {
+            console.error('API Request failed:', error);
+            throw error;
+        }
+    }
 });
 
 // Enhanced query with optimized retry logic
