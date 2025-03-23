@@ -4,8 +4,7 @@ const CACHE_NAME = 'movie-app-v1';
 const STATIC_CACHE_URLS = [
   './',
   './index.html',
-  './favicon.svg',
-  './manifest.json'
+  './favicon.svg'
 ];
 
 // Install service worker
@@ -45,10 +44,6 @@ self.addEventListener('activate', event => {
       .then(() => {
         // Take control of all pages immediately
         self.clients.claim();
-        // Reload all pages to ensure they're controlled by this service worker
-        self.clients.matchAll().then(clients => {
-          clients.forEach(client => client.navigate(client.url));
-        });
       })
   );
 });
@@ -58,8 +53,9 @@ self.addEventListener('fetch', event => {
   // Only cache GET requests
   if (event.request.method !== 'GET') return;
 
-  // Don't cache API calls
-  if (event.request.url.includes('api.themoviedb.org')) {
+  // Don't cache API calls or image requests
+  if (event.request.url.includes('api.themoviedb.org') || 
+      event.request.url.includes('.jpg')) {
     return;
   }
 
