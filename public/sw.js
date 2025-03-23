@@ -3,8 +3,7 @@ const CACHE_NAME = 'movie-app-v1';
 // Files to cache
 const STATIC_CACHE_URLS = [
   './',
-  './index.html',
-  './favicon.svg'
+  './index.html'
 ];
 
 // Install service worker
