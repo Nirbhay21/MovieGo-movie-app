@@ -42,6 +42,13 @@ export default defineConfig({
     headers: {
       'Content-Security-Policy': "script-src 'self' 'unsafe-inline' 'unsafe-eval'; object-src 'none';"
     },
+    proxy: {
+      '/api': {
+        target: 'https://api.themoviedb.org/3',
+        changeOrigin: true,
+        secure: false
+      }
+    },
   },
   preview: {
     port: 3000
