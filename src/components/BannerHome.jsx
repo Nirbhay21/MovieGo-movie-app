@@ -3,6 +3,7 @@ import { FALLBACK_IMAGE_BASE_URL } from '../config/constants';
 import { FaAngleLeft, FaAngleRight } from 'react-icons/fa';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import BannerHomeSkeleton from '../skeletons/HomeBannerSkeleton';
+import { Link } from 'react-router-dom';
 
 const BannerSlide = React.memo(({ banner, index, currentBannerIndex, imageBaseURL, showPreviousBanner, showNextBanner }) => {
   // Calculate responsive dimensions
@@ -26,11 +27,10 @@ const BannerSlide = React.memo(({ banner, index, currentBannerIndex, imageBaseUR
 
   // Optimize transform for better performance
   const transform = `translate3d(${-currentBannerIndex * 100}%, 0, 0)`;
-  
 
   return (
     <div
-      className='group relative min-h-[28rem] min-w-full overflow-hidden lg:min-h-full'
+      className='group relative min-h-[28rem] min-w-full overflow-hidden transition lg:min-h-full'
       style={{
         transform,
         willChange: 'transform',
@@ -87,12 +87,10 @@ const BannerSlide = React.memo(({ banner, index, currentBannerIndex, imageBaseUR
             <span aria-hidden="true">|</span>
             <p>Views: {Number(banner.popularity).toFixed(0)}</p>
           </div>
-          <button
-            className='from-gradient-primary to-gradient-secondary mt-4 cursor-pointer rounded-sm bg-white px-4 py-2 font-bold text-black transition-transform hover:scale-105 hover:bg-gradient-to-l'
-            aria-label={`Play ${banner.title || banner.name}`}
+          <Link to={"/" + banner.media_type + "/" + banner.id} className='from-gradient-primary to-gradient-secondary mt-4 inline-block cursor-pointer rounded-sm bg-white px-7 py-2 font-bold text-black transition-transform hover:scale-105 hover:bg-gradient-to-l' aria-label={`Play ${banner.title || banner.name}`}
           >
             Play Now
-          </button>
+          </Link>
         </div>
       </div>
     </div>
@@ -127,7 +125,8 @@ const BannerHome = () => {
           backdrop_path: item.backdrop_path,
           overview: item.overview || '',
           vote_average: item.vote_average || 0,
-          popularity: item.popularity || 0
+          popularity: item.popularity || 0,
+          media_type: item.media_type || 'movie'
         })),
         isSuccess: response.isSuccess
       })
@@ -137,6 +136,26 @@ const BannerHome = () => {
   // Optimize state management
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const bannerLength = useMemo(() => Math.min(bannerData?.length || 0, 5), [bannerData]);
+
+  // Preload next image
+  // Initialize passive touch handling
+  // Initialize passive touch handling
+  useEffect(() => {
+    if (!carouselRef.current) return;
+
+    const carousel = carouselRef.current;
+    // The touch-action CSS property already handles most touch behavior
+    // We only need passive event listeners for any custom handling
+    const options = { passive: true };
+    
+    carousel.addEventListener('touchstart', () => {}, options);
+    carousel.addEventListener('touchmove', () => {}, options);
+
+    return () => {
+      carousel.removeEventListener('touchstart', () => {}, options);
+      carousel.removeEventListener('touchmove', () => {}, options);
+    };
+  }, []);
 
   // Preload next image
   useEffect(() => {
@@ -170,8 +189,7 @@ const BannerHome = () => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         setIsVisible(entry.isIntersecting);
-      },
-      { threshold: 0.3 }
+      }, { threshold: 0.3 }
     );
 
     if (carouselRef.current) {
@@ -180,8 +198,7 @@ const BannerHome = () => {
 
     let intervalId;
     if (isVisible) {
-      // Reduced interval time for better engagement
-      intervalId = setInterval(showNextBanner, 5000);
+      intervalId = setInterval(showNextBanner, 7000);
     }
 
     return () => {
@@ -236,7 +253,8 @@ const BannerHome = () => {
           transform: 'translateZ(0)',
           backfaceVisibility: 'hidden',
           opacity: isVisible ? 1 : 0.8,
-          transition: 'opacity 0.3s ease-out'
+          transition: 'opacity 0.3s ease-out',
+          touchAction: 'pan-y pinch-zoom'
         }}
       >
         {memoizedBannerList}

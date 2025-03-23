@@ -1,39 +1,84 @@
-import { Outlet, useLocation } from "react-router-dom"
-import Header from "./components/Header"
-import Footer from "./components/Footer"
-import MobileNavigation from "./components/MobileNavigation"
-import { useEffect } from "react"
-import { debounce } from "lodash"
-import { SCROLL } from "./config/constants"
+import { Outlet, ScrollRestoration } from "react-router-dom"
+import { lazy, Suspense, memo } from "react"
+import ErrorBoundary from "./components/ErrorBoundary"
+import PageLoader from "./components/PageLoader"
+import LoadingBoundary from "./components/LoadingBoundary"
 
+// Lazy load layout components
+const Header = lazy(() => import('./components/Header'))
+const Footer = lazy(() => import('./components/Footer'))
+const MobileNavigation = lazy(() => import('./components/MobileNavigation'))
+
+// Memoize static components
+const HeaderMemo = memo(Header)
+const FooterMemo = memo(Footer)
+const MobileNavigationMemo = memo(MobileNavigation)
 function App() {
-  const location = useLocation();
-
-  useEffect(() => {
-    const scrollY = Number(window.sessionStorage.getItem(SCROLL + location.pathname.replaceAll("/", "_"))) || 0;
-    window.scrollTo({ top: scrollY, behavior: "auto" });
-
-    const handleScroll = debounce(() => {
-      window.sessionStorage.setItem(SCROLL + location.pathname.replaceAll("/", "_"), window.scrollY);
-    }, 50);
-
-    window.addEventListener("scroll", handleScroll);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    }
-  }, [location.pathname]);
-
   return (
-    <div className="pb-14 sm:px-0 lg:pb-0">
-      <Header />
-      <main className="min-h-screen w-full">
-        <Outlet />
-      </main>
-      <Footer />
-      <MobileNavigation />
-    </div>
+    <ErrorBoundary>
+      <div className="pb-14 sm:px-0 lg:pb-0">
+        {/* Skip to main content link */}
+        <a href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-4 focus:text-black">
+          Skip to main content
+        </a>
+
+        {/* Header with loading state */}
+        <Suspense>
+          <LoadingBoundary
+            fallback={
+              <div className="h-16 animate-pulse bg-gradient-to-r from-gray-100 to-gray-200"
+                role="banner"
+                aria-label="Loading header" />
+            }
+          >
+            <HeaderMemo />
+          </LoadingBoundary>
+        </Suspense>
+
+        {/* Main content with error boundary */}
+        <main id="main-content"
+          className="min-h-screen w-full"
+          role="main">
+          <ErrorBoundary>
+            <Suspense fallback={<PageLoader />}>
+              <Outlet />
+            </Suspense>
+          </ErrorBoundary>
+        </main>
+
+        {/* Footer with loading state */}
+        <Suspense>
+          <LoadingBoundary
+            fallback={
+              <div className="h-16 animate-pulse bg-gradient-to-r from-gray-100 to-gray-200"
+                role="contentinfo"
+                aria-label="Loading footer" />
+            }
+          >
+            <FooterMemo />
+          </LoadingBoundary>
+        </Suspense>
+
+        {/* Mobile navigation with silent loading */}
+        <Suspense>
+          <LoadingBoundary>
+            <nav aria-label="Mobile navigation">
+              <MobileNavigationMemo />
+            </nav>
+          </LoadingBoundary>
+        </Suspense>
+
+        {/* Basic scroll restoration */}
+        <ScrollRestoration />
+
+        {/* Live region for important announcements */}
+        <div aria-live="assertive" aria-atomic="true" className="sr-only">
+        </div>
+      </div>
+    </ErrorBoundary>
   )
 }
 
-export default App
+// Prevent unnecessary re-renders
+export default memo(App)

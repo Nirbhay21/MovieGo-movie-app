@@ -1,6 +1,6 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   plugins: [
@@ -14,7 +14,23 @@ export default defineConfig({
   resolve: {
     extensions: ['.mjs', '.js', '.jsx', '.json']
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor': ['react', 'react-dom', 'react-router-dom'],
+          'home': ['./src/pages/HomePage.jsx'],
+          'explore': ['./src/pages/ExplorePage.jsx'],
+          'details': ['./src/pages/DetailsPage.jsx'],
+          'search': ['./src/pages/SearchPage.jsx']
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1000,
+    sourcemap: true
+  },
   optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom'],
     force: true,
     esbuildOptions: {
       loader: {
@@ -27,5 +43,11 @@ export default defineConfig({
     fs: {
       strict: false,
     },
+    headers: {
+      'Content-Security-Policy': "script-src 'self' 'unsafe-inline' 'unsafe-eval'; object-src 'none';"
+    },
+  },
+  preview: {
+    port: 3000
   }
-})
+});

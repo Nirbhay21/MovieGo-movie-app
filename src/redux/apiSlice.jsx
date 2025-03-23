@@ -1,5 +1,6 @@
 import { createApi, fetchBaseQuery, retry } from "@reduxjs/toolkit/query/react";
 import { BACKDROP, FALLBACK_BACKDROP_IMAGE_SIZE, FALLBACK_IMAGE_BASE_URL, FALLBACK_POSTER_IMAGE_SIZE, FALLBACK_PROFILE_IMAGE_SIZE, POSTER, PROFILE } from "../config/constants";
+import ErrorIndicator from "../components/ErrorIndicator";
 
 // Optimized cache durations based on data type
 const CACHE_DURATIONS = {
@@ -11,18 +12,17 @@ const CACHE_DURATIONS = {
     default: 120         // Default - 2 minutes
 };
 
-// Enhanced error handler
+// Enhanced error handler with accessibility
 const handleApiError = (error) => {
     const errorDetails = {
         status: error?.status,
         message: error?.data?.message || 'Unknown error occurred',
         timestamp: new Date().toISOString(),
-        endpoint: error?.endpoint
+        endpoint: error?.endpoint,
+        ariaLabel: `Error: ${error?.data?.message || 'Unknown error occurred'}`
     };
 
-    // Log error for monitoring
     console.error('[API Error]:', errorDetails);
-
     return errorDetails;
 };
 
@@ -34,30 +34,28 @@ const baseQuery = fetchBaseQuery({
         headers.set('Accept', 'application/json');
         return headers;
     },
-    timeout: 10000, // 10 second timeout
+    timeout: 10000,
 });
 
 // Enhanced query with retry logic and exponential backoff
 const enhancedBaseQuery = retry(async (args, api, extraOptions) => {
     try {
-        // Optimize query parameters
         if (typeof args === "object") {
             args.params = {
                 ...(args.params || {}),
                 include_adult: false,
-                language: "en-US" // Ensure consistent language
+                language: "en-US"
             };
         }
 
         const result = await baseQuery(args, api, extraOptions);
 
         if (result.error) {
-            return {
-                error: handleApiError({
-                    ...result.error,
-                    endpoint: typeof args === 'string' ? args : args.url
-                })
-            };
+            const error = handleApiError({
+                ...result.error,
+                endpoint: typeof args === 'string' ? args : args.url
+            });
+            return { error };
         }
 
         return result;
@@ -66,8 +64,31 @@ const enhancedBaseQuery = retry(async (args, api, extraOptions) => {
     }
 }, {
     maxRetries: 3,
-    backoff: (attempt) => Math.min(1000 * (2 ** attempt), 30000) // Exponential backoff with 30s max
+    backoff: (attempt) => Math.min(1000 * (2 ** attempt), 30000)
 });
+
+// Add accessibility metadata to media items
+const addAccessibilityMetadata = (data, type = '') => {
+    if (!data) return data;
+
+    if (Array.isArray(data.results)) {
+        data.results = data.results.map(item => ({
+            ...item,
+            ariaLabel: `${item.title || item.name || 'Untitled'}, ${type} ${item.release_date ? `released ${item.release_date}` : ''}`,
+            role: 'article'
+        }));
+        
+        // Add collection metadata
+        data.ariaLabel = `${type} collection with ${data.results.length} items`;
+        data.role = 'feed';
+    } else {
+        // Single item metadata
+        data.ariaLabel = `${data.title || data.name || 'Untitled'} ${data.release_date ? `released ${data.release_date}` : ''}`;
+        data.role = 'article';
+    }
+
+    return data;
+};
 
 export const api = createApi({
     reducerPath: "api",
@@ -94,7 +115,6 @@ export const api = createApi({
     ],
 
     endpoints: (builder) => ({
-        // Configuration endpoint with optimized image URL handling
         getImageBaseURL: builder.query({
             query: () => "/configuration",
             keepUnusedDataFor: CACHE_DURATIONS.configuration,
@@ -102,7 +122,6 @@ export const api = createApi({
             transformResponse: (response, meta, arg) => {
                 const baseURL = response?.images?.secure_base_url || FALLBACK_IMAGE_BASE_URL;
 
-                // Helper function to get optimal image size
                 const getOptimalSize = (sizes, defaultSize, targetIndex = 3) => {
                     if (!sizes?.length) return defaultSize;
                     return sizes[Math.min(sizes.length - 1, targetIndex)] || defaultSize;
@@ -119,7 +138,7 @@ export const api = createApi({
                         const size = getOptimalSize(response?.images?.profile_sizes, FALLBACK_PROFILE_IMAGE_SIZE, 1);
                         return `${baseURL}${size}`;
                     }
-                }
+                };
 
                 if (typeof arg?.imageFor === "string") {
                     return selectOptimalImageSize(arg.imageFor);
@@ -133,53 +152,55 @@ export const api = createApi({
                     const imageTypesResult = {};
                     imageForTypes.forEach((type, index) => {
                         imageTypesResult[type] = sizes[index];
-                    })
+                    });
                     return imageTypesResult;
                 }
                 return baseURL;
             }
         }),
 
-        // Critical data endpoints - highest priority, immediate load
         getTrending: builder.query({
             query: () => "/trending/all/week",
             keepUnusedDataFor: CACHE_DURATIONS.trending,
-            providesTags: ['TrendingMedia']
+            providesTags: ['TrendingMedia'],
+            transformResponse: (response) => addAccessibilityMetadata(response, 'trending')
         }),
 
         getNowPlaying: builder.query({
             query: () => "/movie/now_playing",
             keepUnusedDataFor: CACHE_DURATIONS.nowPlaying,
-            providesTags: ['NowPlayingMedia']
+            providesTags: ['NowPlayingMedia'],
+            transformResponse: (response) => addAccessibilityMetadata(response, 'now playing')
         }),
 
-        // Secondary data endpoints - medium priority, deferred load
         getTopRated: builder.query({
             query: () => "/movie/top_rated",
             keepUnusedDataFor: CACHE_DURATIONS.default,
-            providesTags: ['TopRatedMedia']
+            providesTags: ['TopRatedMedia'],
+            transformResponse: (response) => addAccessibilityMetadata(response, 'top rated')
         }),
 
         getPopularTvShows: builder.query({
             query: () => "/tv/popular",
             keepUnusedDataFor: CACHE_DURATIONS.default,
-            providesTags: ['PopularTvShows']
+            providesTags: ['PopularTvShows'],
+            transformResponse: (response) => addAccessibilityMetadata(response, 'popular TV shows')
         }),
 
         getUpcomingMedia: builder.query({
             query: () => "/movie/upcoming",
             keepUnusedDataFor: CACHE_DURATIONS.default,
-            providesTags: ['UpcomingMedia']
+            providesTags: ['UpcomingMedia'],
+            transformResponse: (response) => addAccessibilityMetadata(response, 'upcoming')
         }),
 
-        // Optional data endpoint - lowest priority, load on viewport
         getOnAirTvShows: builder.query({
             query: () => "/tv/on_the_air",
             keepUnusedDataFor: CACHE_DURATIONS.default,
-            providesTags: ['OnAirTvShows']
+            providesTags: ['OnAirTvShows'],
+            transformResponse: (response) => addAccessibilityMetadata(response, 'TV shows on air')
         }),
 
-        // Discover endpoint with optimized caching and pagination
         getDiscoverMedia: builder.query({
             query: ({ mediaType, pageNo }) => ({
                 url: `/discover/${mediaType}`,
@@ -193,20 +214,23 @@ export const api = createApi({
                 if (!currentCache.results) {
                     currentCache.results = [];
                 }
-                // Deduplicate results based on id
                 const existingIds = new Set(currentCache.results.map(item => item.id));
                 const uniqueNewItems = newItems.results.filter(item => !existingIds.has(item.id));
                 currentCache.results.push(...uniqueNewItems);
+
+                // Update accessibility metadata for the merged collection
+                addAccessibilityMetadata(currentCache, 'discovered media');
             },
             forceRefetch: ({ currentArg, previousArg }) => {
                 return currentArg?.pageNo !== previousArg?.pageNo;
             },
             providesTags: (result, error, { mediaType, pageNo }) => (
                 (result) ? [{ type: "DiscoverMedia", id: `${mediaType}-page-${pageNo}` }] : []
-            )
+            ),
+            transformResponse: (response, meta, arg) => 
+                addAccessibilityMetadata(response, `discovered ${arg.mediaType}`)
         }),
 
-        // Search endpoint with short cache duration for responsiveness
         searchMedia: builder.query({
             query: ({ query, pageNo }) => ({
                 url: "/search/multi",
@@ -220,10 +244,12 @@ export const api = createApi({
                 if (!currentCache.results) {
                     currentCache.results = [];
                 }
-                // Deduplicate results
                 const existingIds = new Set(currentCache.results.map(item => item.id));
                 const uniqueNewItems = newItems.results.filter(item => !existingIds.has(item.id));
                 currentCache.results.push(...uniqueNewItems);
+
+                // Update accessibility metadata for the merged collection
+                addAccessibilityMetadata(currentCache, 'search results');
             },
             forceRefetch: ({ currentArg, previousArg }) => {
                 return currentArg?.query && (
@@ -232,10 +258,10 @@ export const api = createApi({
             },
             providesTags: (result, error, { query, pageNo }) => (
                 (result) ? [{ type: "SearchMedia", id: `${query}-page-${pageNo}` }] : []
-            )
+            ),
+            transformResponse: (response) => addAccessibilityMetadata(response, 'search results')
         }),
 
-        // Media details endpoint with longer cache duration
         getMediaDetails: builder.query({
             query: ({ mediaType, mediaId }) => ({
                 url: `/${mediaType}/${mediaId}`,
@@ -243,10 +269,11 @@ export const api = createApi({
             keepUnusedDataFor: CACHE_DURATIONS.details,
             providesTags: (result, error, { mediaType, mediaId }) => [
                 { type: mediaType === 'movie' ? 'MediaDetailsMovie' : 'MediaDetailsTv', id: mediaId }
-            ]
+            ],
+            transformResponse: (response, meta, arg) => 
+                addAccessibilityMetadata(response, arg.mediaType)
         }),
 
-        // Credits endpoint with medium cache duration
         getMediaCredits: builder.query({
             query: ({ mediaType, mediaId }) => ({
                 url: `/${mediaType}/${mediaId}/credits`,
@@ -254,10 +281,30 @@ export const api = createApi({
             keepUnusedDataFor: CACHE_DURATIONS.details,
             providesTags: (result, error, { mediaType, mediaId }) => [
                 { type: mediaType === 'movie' ? 'MediaCreditsMovie' : 'MediaCreditsTv', id: mediaId }
-            ]
+            ],
+            transformResponse: (response) => {
+                if (response.cast) {
+                    response.cast = response.cast.map(person => ({
+                        ...person,
+                        ariaLabel: `${person.name} as ${person.character || 'Unknown character'}`,
+                        role: 'listitem'
+                    }));
+                }
+                if (response.crew) {
+                    response.crew = response.crew.map(person => ({
+                        ...person,
+                        ariaLabel: `${person.name}, ${person.job || 'crew member'}`,
+                        role: 'listitem'
+                    }));
+                }
+                return {
+                    ...response,
+                    ariaLabel: `Cast and crew information`,
+                    role: 'list'
+                };
+            }
         }),
 
-        // Similar media endpoint with medium cache duration
         getSimilarMedia: builder.query({
             query: ({ mediaType, mediaId }) => ({
                 url: `/${mediaType}/${mediaId}/similar`,
@@ -265,10 +312,10 @@ export const api = createApi({
             keepUnusedDataFor: CACHE_DURATIONS.default,
             providesTags: (result, error, { mediaType, mediaId }) => [
                 { type: mediaType === 'movie' ? 'SimilarMediaMovie' : 'SimilarMediaTv', id: mediaId }
-            ]
+            ],
+            transformResponse: (response) => addAccessibilityMetadata(response, 'similar items')
         }),
 
-        // Recommended media endpoint with medium cache duration
         getRecommendedMedia: builder.query({
             query: ({ mediaType, mediaId }) => ({
                 url: `/${mediaType}/${mediaId}/recommendations`,
@@ -276,23 +323,47 @@ export const api = createApi({
             keepUnusedDataFor: CACHE_DURATIONS.default,
             providesTags: (result, error, { mediaType, mediaId }) => [
                 { type: mediaType === 'movie' ? 'RecommendedMediaMovie' : 'RecommendedMediaTv', id: mediaId }
-            ]
+            ],
+            transformResponse: (response) => addAccessibilityMetadata(response, 'recommendations')
+        }),
+
+        getMediaVideos: builder.query({
+            query: ({ mediaId, mediaType }) => `/${mediaType}/${mediaId}/videos`,
+            keepUnusedDataFor: CACHE_DURATIONS.default,
+            providesTags: (result, error, { mediaType, mediaId }) => [
+                { type: mediaType === 'movie' ? 'MovieVideos' : 'TvVideos', id: mediaId }
+            ],
+            transformResponse: (response) => {
+                if (response.results) {
+                    response.results = response.results.map(video => ({
+                        ...video,
+                        ariaLabel: `${video.type}: ${video.name}`,
+                        role: 'listitem'
+                    }));
+                }
+                return {
+                    ...response,
+                    ariaLabel: 'Available videos',
+                    role: 'list'
+                };
+            }
         })
     })
-})
+});
 
 export const {
-    useSearchMediaQuery,
-    useGetTrendingQuery,
-    useGetTopRatedQuery,
-    useGetNowPlayingQuery,
     useGetImageBaseURLQuery,
+    useGetTrendingQuery,
+    useGetNowPlayingQuery,
+    useGetTopRatedQuery,
+    useGetPopularTvShowsQuery,
+    useGetUpcomingMediaQuery,
     useGetOnAirTvShowsQuery,
+    useGetDiscoverMediaQuery,
+    useSearchMediaQuery,
     useGetMediaDetailsQuery,
     useGetMediaCreditsQuery,
     useGetSimilarMediaQuery,
-    useGetDiscoverMediaQuery,
-    useGetUpcomingMediaQuery,
-    useGetPopularTvShowsQuery,
     useGetRecommendedMediaQuery,
+    useGetMediaVideosQuery
 } = api;

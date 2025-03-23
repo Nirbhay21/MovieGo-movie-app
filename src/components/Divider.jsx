@@ -1,8 +1,23 @@
-import React from 'react'
+import React from 'react';
 
-const Divider = React.memo(() => (
-  <div className='my-2 rounded-full bg-neutral-700 p-[0.03125rem]'>
-  </div>
+const DIVIDER_STYLES = {
+    base: 'my-2 rounded-full bg-neutral-700',
+    thickness: 'p-[0.03125rem]'
+};
+
+const Divider = React.memo(({ 
+    className = '', label, orientation ='horizontal',
+    ...props 
+}) => (
+    <hr
+        role="separator"
+        aria-orientation={orientation}
+        aria-label={label || 'Content divider'}
+        className={`${DIVIDER_STYLES.base} ${DIVIDER_STYLES.thickness} ${className}`.trim()}
+        {...props}
+    />
 ));
 
-export default Divider
+Divider.displayName = 'Divider';
+
+export default Divider;

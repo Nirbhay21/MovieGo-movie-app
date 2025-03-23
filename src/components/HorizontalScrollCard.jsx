@@ -1,8 +1,35 @@
 import Card from './Card'
-import React, { useRef, useCallback } from 'react'
+import React, { useRef, useCallback, useMemo } from 'react'
 import { FaAngleLeft, FaAngleRight } from 'react-icons/fa';
 import { useGetImageBaseURLQuery } from '../redux/apiSlice';
 import { FALLBACK_IMAGE_BASE_URL, POSTER } from '../config/constants';
+
+const STYLE_CONSTANTS = {
+    section: 'container mx-auto my-10 px-3',
+    heading: 'mb-2 text-xl font-bold capitalize text-white lg:text-2xl',
+    container: 'no-scrollbar relative grid grid-flow-col gap-6 overflow-y-visible overflow-x-scroll scroll-smooth transition-all',
+    buttonContainer: 'pointer-events-none absolute top-0 hidden h-full w-full items-center justify-between lg:flex',
+    buttonBase: 'pointer-events-auto z-10 cursor-pointer rounded-full bg-white p-2 text-black shadow-lg transition-all hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800',
+    buttonLeft: '-ml-2',
+    buttonRight: '-mr-2',
+    iconStyle: 'h-5 w-5'
+};
+
+const ScrollButton = React.memo(({ direction, onClick, heading }) => (
+    <button
+        className={`${STYLE_CONSTANTS.buttonBase} ${direction === 'left' ? STYLE_CONSTANTS.buttonLeft : STYLE_CONSTANTS.buttonRight}`}
+        onClick={onClick}
+        aria-label={`Scroll ${direction} in ${heading}`}
+    >
+        {direction === 'left' ? (
+            <FaAngleLeft className={STYLE_CONSTANTS.iconStyle} aria-hidden="true" />
+        ) : (
+            <FaAngleRight className={STYLE_CONSTANTS.iconStyle} aria-hidden="true" />
+        )}
+    </button>
+));
+
+ScrollButton.displayName = 'ScrollButton';
 
 const HorizontalScrollCard = ({ cardsData = [], heading, trending, mediaType }) => {
     const containerRef = useRef(null);
@@ -12,6 +39,17 @@ const HorizontalScrollCard = ({ cardsData = [], heading, trending, mediaType }) 
             ...rest
         })
     });
+
+    const containerStyles = useMemo(() => ({
+        gridAutoColumns: '14.5rem',
+        height: '348px',
+        willChange: 'transform',
+        touchAction: 'pan-x pan-y pinch-zoom'
+    }), []);
+
+    const filteredCards = useMemo(() =>
+        cardsData.filter(card => card.poster_path),
+    [cardsData]);
 
     const scrollPrevious = useCallback(() => {
         if (containerRef.current) containerRef.current.scrollLeft -= 300;
@@ -45,53 +83,49 @@ const HorizontalScrollCard = ({ cardsData = [], heading, trending, mediaType }) 
     }, [scrollPrevious, scrollNext]);
 
     return (
-        <section className='container mx-auto my-10 px-3'>
-            <h2 className='mb-2 text-xl font-bold capitalize text-white lg:text-2xl'>
+        <section className={STYLE_CONSTANTS.section}>
+            <h2 className={STYLE_CONSTANTS.heading}>
                 {heading}
             </h2>
 
             <div className='relative overflow-visible'>
                 <div ref={containerRef}
                     role='list'
-                    className='no-scrollbar relative grid grid-flow-col gap-6 overflow-y-visible overflow-x-scroll scroll-smooth transition-all'
-                    style={{
-                        gridTemplateColumns: `repeat(auto-fit, 14.5rem)`,
-                        height: '348px',
-                        willChange: 'transform'
-                    }}
+                    className={STYLE_CONSTANTS.container}
+                    style={containerStyles}
                     tabIndex="0"
-                    onKeyDown={handleKeyDown}>
-                    {cardsData.map((card, index) => (
-                        <Card
-                            data={card}
-                            index={index + 1}
-                            trending={trending}
-                            mediaType={mediaType}
-                            posterImageBaseURL={imageBaseURL}
-                            key={card.id + "heading" + index}
-                        />
-                    ))}
+                    onKeyDown={handleKeyDown}
+                    aria-label={`Scrollable ${heading} content`}
+                    aria-description="Use arrow keys to scroll left and right, Home to scroll to start, End to scroll to end">
+                    {useMemo(() => (
+                        filteredCards.map((card, index) => (
+                            <div role="listitem" key={card.id + "heading" + index} className="-m-2 overflow-visible p-2 hover:z-10">
+                                <Card
+                                    data={card}
+                                    index={index + 1}
+                                    trending={trending}
+                                    mediaType={mediaType}
+                                    posterImageBaseURL={imageBaseURL}
+                                />
+                            </div>
+                        ))
+                    ), [filteredCards, trending, mediaType, imageBaseURL])}
                 </div>
 
-                <div className='pointer-events-none absolute top-0 hidden h-full w-full items-center justify-between lg:flex'>
-                    <button
-                        className='pointer-events-auto z-10 -ml-2 cursor-pointer rounded-full bg-white p-1 text-black focus:outline-none focus:ring-2 focus:ring-offset-2'
-                        onClick={scrollPrevious}
-                        aria-label="Scroll left"
-                    >
-                        <FaAngleLeft />
-                    </button>
-                    <button
-                        className='pointer-events-auto z-10 -mr-2 cursor-pointer rounded-full bg-white p-1 text-black focus:outline-none focus:ring-2 focus:ring-offset-2'
-                        onClick={scrollNext}
-                        aria-label="Scroll right"
-                    >
-                        <FaAngleRight />
-                    </button>
+                <div className={STYLE_CONSTANTS.buttonContainer}>
+                    <ScrollButton direction="left" onClick={scrollPrevious} heading={heading} />
+                    <ScrollButton direction="right" onClick={scrollNext} heading={heading} />
                 </div>
             </div>
         </section>
     )
 }
 
-export default HorizontalScrollCard
+export default React.memo(HorizontalScrollCard, (prevProps, nextProps) => {
+    return (
+        prevProps.heading === nextProps.heading &&
+        prevProps.trending === nextProps.trending &&
+        prevProps.mediaType === nextProps.mediaType &&
+        prevProps.cardsData === nextProps.cardsData
+    );
+});

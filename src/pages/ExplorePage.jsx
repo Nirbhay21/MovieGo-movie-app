@@ -84,7 +84,7 @@ const ExplorePage = React.memo(() => {
       </a>
 
       <div className='container mx-auto'>
-        <h1 id="page-title" className='my-3 text-lg font-semibold capitalize lg:text-2xl'>
+        <h1 id="page-title" className='my-3 px-4 text-lg font-semibold capitalize sm:px-2 lg:text-2xl'>
           Popular {params.explore} Shows
         </h1>
 
@@ -98,7 +98,7 @@ const ExplorePage = React.memo(() => {
 
         <div
           id="main-content"
-          className='grid grid-cols-[repeat(auto-fit,14.5rem)] justify-center gap-6'
+          className='grid grid-cols-[repeat(auto-fit,14.5rem)] justify-center gap-6 px-4 sm:px-2'
           role="region"
           aria-label={`${params.explore} shows grid`}
           tabIndex="-1"

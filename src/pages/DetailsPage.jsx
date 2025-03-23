@@ -7,11 +7,15 @@ import { useGetImageBaseURLQuery, useGetMediaCreditsQuery, useGetMediaDetailsQue
 import { Suspense } from 'react';
 import HorizontalScrollCardSkeleton from '../skeletons/HorizontalScrollCardSkeleton';
 import DetailsPageSkeleton from '../skeletons/DetailsPageSkeleton';
+import { useState } from 'react';
+import VideoPlay from '../components/VideoPlay';
 
 const HorizontalScrollCard = React.lazy(() => import('../components/HorizontalScrollCard'));
 
 const DetailsPage = () => {
   const params = useParams();
+  const [playVideo, setPlayVideo] = useState(false);
+  const { explore: mediaType, id: mediaId } = params;
 
   const { imageBaseURLs, isFetching: isImageBaseURLFetching, isSuccess: isImageBaseURLSuccess } = useGetImageBaseURLQuery({ imageFor: [BACKDROP, POSTER, PROFILE] }, {
     selectFromResult: ({ data, ...rest }) => ({
@@ -24,18 +28,18 @@ const DetailsPage = () => {
     data: mediaDetails,
     isSuccess: isMediaDetailsSuccess,
     isFetching: isMediaDetailsFetching
-  } = useGetMediaDetailsQuery({ mediaType: params.explore, mediaId: params.id });
+  } = useGetMediaDetailsQuery({ mediaType, mediaId });
 
   const {
     data: mediaCredits,
     isSuccess: isMediaCreditsSuccess,
     isFetching: isMediaCreditsFetching
-  } = useGetMediaCreditsQuery({ mediaType: params.explore, mediaId: params.id });
+  } = useGetMediaCreditsQuery({ mediaType, mediaId });
 
   const {
     similarMedia,
     isSimilarMediaSuccess,
-  } = useGetSimilarMediaQuery({ mediaType: params.explore, mediaId: params.id }, {
+  } = useGetSimilarMediaQuery({ mediaType, mediaId }, {
     selectFromResult: (response) => ({
       similarMedia: response?.data?.results,
       isSimilarMediaSuccess: response.isSuccess,
@@ -47,7 +51,7 @@ const DetailsPage = () => {
   const {
     recommendMedia,
     isRecommendedMediaSuccess,
-  } = useGetRecommendedMediaQuery({ mediaType: params.explore, mediaId: params.id }, {
+  } = useGetRecommendedMediaQuery({ mediaType, mediaId }, {
     selectFromResult: (response) => ({
       recommendMedia: response?.data?.results,
       isRecommendedMediaSuccess: response.isSuccess,
@@ -63,15 +67,15 @@ const DetailsPage = () => {
       minutes: runtime % 60
     };
   };
-  
+
   const getEpDuration = () => {
     const episodeDurations = mediaDetails?.episode_run_time || [];
     if (episodeDurations.length === 0) return { hours: 0, minutes: 0 };
-    
+
     const avgDuration = Math.round(
       episodeDurations.reduce((sum, duration) => sum + duration, 0) / episodeDurations.length
     );
-    
+
     return {
       hours: Math.floor(avgDuration / 60),
       minutes: avgDuration % 60
@@ -92,6 +96,10 @@ const DetailsPage = () => {
     )
   }
 
+  const handlePlayVideo = () => {
+    setPlayVideo(true);
+  }
+
   return (
     <main aria-busy={!(isMediaDetailsSuccess && isMediaCreditsSuccess && isImageBaseURLSuccess)}>
       <div role="status" className="sr-only" aria-live="polite">
@@ -104,8 +112,8 @@ const DetailsPage = () => {
               <img
                 src={imageBaseURLs[BACKDROP] + mediaDetails?.backdrop_path}
                 alt={mediaDetails.title + " backdrop image"}
-                loading='lazy'
-                decoding='async'
+                loading='eager'
+                decoding='sync'
                 className='h-full w-full object-cover'
               />
             </div>
@@ -118,9 +126,15 @@ const DetailsPage = () => {
                 src={imageBaseURLs[POSTER] + mediaDetails?.poster_path}
                 alt={`${mediaDetails.title || mediaDetails.name} poster`}
                 className='h-96 w-60 object-contain'
-                loading='lazy'
-                decoding='async'
+                loading='eager'
+                decoding='sync'
               />
+              <button
+                className='hover:bg- hover:from-gradient-primary to-gradient-secondary mt-3 w-full cursor-pointer rounded-md bg-white px-4 py-2 text-center text-lg font-bold text-black transition-transform hover:scale-105 hover:bg-gradient-to-r'
+                onClick={handlePlayVideo}
+              >
+                Play Now
+              </button>
             </div>
 
             <div className='w-full py-2'>
@@ -182,49 +196,62 @@ const DetailsPage = () => {
               {mediaCredits?.crew.length > 0 && (
                 <>
                   <section aria-label="Credits">
-                    {console.log(director)}
-                    <p><span className='text-white'>Director: </span>{director}</p>
-                    <Divider aria-hidden="true" />
-                    <p><span className='text-white'>Writer: </span>{writer}</p>
+                    {director && (
+                      <p><span className='text-white'>Director: </span>{director}</p>
+                    )}
+                    {writer && (
+                      <>
+                        <Divider aria-hidden="true" />
+                        <p><span className='text-white'>Writer: </span>{writer}</p>
+                      </>
+                    )}
                   </section>
-                  <Divider aria-hidden="true" />
+                  {writer && <Divider aria-hidden="true" />}
                 </>
               )}
 
-              <section aria-labelledby="cast-heading">
-                <h2 id="cast-heading" className='text-lg font-bold'>Cast</h2>
-                <div className='grid grid-cols-[repeat(auto-fit,6rem)] justify-center gap-5' role="grid" aria-label="Cast members grid">
-                  {mediaCredits.cast.filter((castMember) => castMember?.profile_path).map((castMember) => (
-                    <div key={castMember.id} role="gridcell">
-                      <div>
-                        <img
-                          src={imageBaseURLs[PROFILE] + castMember?.profile_path}
-                          alt={`${castMember?.name} - Cast Member`}
-                          className='h-24 w-24 rounded-full object-cover'
-                          loading='lazy'
-                          decoding='async'
-                        />
+              {mediaCredits?.cast.length > 0 && mediaCredits?.cast.some((currCast) => currCast.profile_path) && (
+                <section aria-labelledby="cast-heading">
+                  <h2 id="cast-heading" className='text-lg font-bold'>Cast</h2>
+                  <div className='grid grid-cols-[repeat(auto-fit,6rem)] justify-center gap-5' role="grid" aria-label="Cast members grid">
+                    {mediaCredits.cast.filter((castMember) => castMember?.profile_path).map((castMember) => (
+                      <div key={castMember.id} role="gridcell">
+                        <div>
+                          <img
+                            src={imageBaseURLs[PROFILE] + castMember?.profile_path}
+                            alt={`${castMember?.name} - Cast Member`}
+                            className='h-24 w-24 rounded-full object-cover'
+                            loading='lazy'
+                            decoding='async'
+                          />
+                        </div>
+                        <p className='text-center text-sm font-bold' aria-label={`${castMember?.name}, cast member`}>{castMember?.name}</p>
                       </div>
-                      <p className='text-center text-sm font-bold' aria-label={`${castMember?.name}, cast member`}>{castMember?.name}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
+                    ))}
+                  </div>
+                </section>
+              )}
             </div>
           </section>
         </>
       )}
 
       <section aria-label="Related Media">
-        {(isSimilarMediaSuccess) && (
+        {(isSimilarMediaSuccess && similarMedia.length > 0) && (
           <Suspense fallback={<HorizontalScrollCardSkeleton trending={false} />}>
-            <HorizontalScrollCard cardsData={similarMedia} heading={"Similar " + params?.explore} mediaType={params.explore} />
+            <HorizontalScrollCard cardsData={similarMedia} heading={"Similar " + params?.explore} mediaType={mediaType} />
           </Suspense>
         )}
         {(isRecommendedMediaSuccess && Array.isArray(recommendMedia) && recommendMedia.length > 0) && (
           <Suspense fallback={<HorizontalScrollCardSkeleton trending={false} />}>
-            <HorizontalScrollCard cardsData={recommendMedia} heading={"Recommended " + params?.explore} mediaType={params.explore} />
+            <HorizontalScrollCard cardsData={recommendMedia} heading={"Recommended " + params?.explore} mediaType={mediaType} />
           </Suspense>
+        )}
+      </section>
+
+      <section>
+        {playVideo && (
+          <VideoPlay data={mediaDetails} mediaType={params?.explore} close={() => setPlayVideo(false)} />
         )}
       </section>
     </main>

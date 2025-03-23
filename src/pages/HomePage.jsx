@@ -247,44 +247,54 @@ const HomePage = () => {
   }
 
   return (
-    <div>
+    <main aria-label="Movie and TV Show Homepage">
       {/* Critical Content */}
-      <Suspense fallback={<BannerHomeSkeleton />}>
-        {trendingDataError ? (
-          <ErrorIndicator
-            message="Failed to load featured content"
-            error={trendingDataError}
-            onRetry={handleRetry}
-          />
-        ) : (
-          <BannerHome />
-        )}
-      </Suspense>
+      <section aria-label="Featured Content" aria-busy={isTrendingDataLoading}>
+        <Suspense fallback={<BannerHomeSkeleton />}>
+          {trendingDataError ? (
+            <ErrorIndicator
+              message="Failed to load featured content"
+              error={trendingDataError}
+              onRetry={handleRetry}
+            />
+          ) : (
+            <BannerHome />
+          )}
+        </Suspense>
+      </section>
 
       {/* Priority-based content rendering with error handling */}
-      {priorityGroups.critical.map(({ error, errorData, ...props }) => (
-        error ? (
-          <ErrorIndicator
-            key={props.key}
-            message={`Failed to load ${props.heading}`}
-            error={errorData}
-            onRetry={handleRetry}
-          />
-        ) : (
-          renderComponent({ error, errorData, ...props })
-        )
-      ))}
+      <section aria-label="Trending and Now Playing" aria-busy={priorityGroups.critical.some(item => item.loading)}>
+        {priorityGroups.critical.map(({ error, errorData, ...props }) => (
+          error ? (
+            <ErrorIndicator
+              key={props.key}
+              message={`Failed to load ${props.heading}`}
+              error={errorData}
+              onRetry={handleRetry}
+            />
+          ) : (
+            renderComponent({ error, errorData, ...props })
+          )
+        ))}
+      </section>
 
-      {shouldLoadSecondary && (
-        priorityGroups.secondary.map(renderComponent)
-      )}
+      <section aria-label="Additional Movies and Shows" aria-busy={!shouldLoadSecondary || priorityGroups.secondary.some(item => item.loading)}>
+        {shouldLoadSecondary && (
+          priorityGroups.secondary.map(renderComponent)
+        )}
+      </section>
 
-      <div ref={optionalContentRef}>
+      <section
+        ref={optionalContentRef}
+        aria-label="More TV Shows"
+        aria-busy={!shouldLoadOptional || priorityGroups.optional.some(item => item.loading)}
+      >
         {shouldLoadOptional && (
           priorityGroups.optional.map(renderComponent)
         )}
-      </div>
-    </div>
+      </section>
+    </main>
   )
 }
 

@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
     
     <!-- App Icon -->
-    <link rel="icon" type="image/svg+xml" href="/moviego.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
     <!-- Critical CSS -->
     <style>
@@ -37,7 +37,28 @@
     <title>MovieGo - Watch Movies & TV Shows</title>
   </head>
   <body>
-    <div id="root"></div>
+    <a href="#root" class="skip-link" style="position: absolute; top: -40px; left: 0; background: #000; color: white; padding: 8px; z-index: 100; transition: top 0.2s; &:focus { top: 0; }">Skip to main content</a>
+    <div id="root" role="main"></div>
+    <noscript>
+      <div style="padding: 20px; text-align: center; background: #f44336; color: white;">
+        Please enable JavaScript to use MovieGo application.
+      </div>
+    </noscript>
+    <script>
+      // Set up passive event handlers before app loads
+      (function() {
+        if (window.EventTarget) {
+          const originalAddEventListener = EventTarget.prototype.addEventListener;
+          EventTarget.prototype.addEventListener = function(type, listener, options) {
+            if (type === 'touchstart' || type === 'touchmove' || type === 'wheel') {
+              options = options || {};
+              Object.assign(options, { passive: true });
+            }
+            originalAddEventListener.call(this, type, listener, options);
+          };
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
