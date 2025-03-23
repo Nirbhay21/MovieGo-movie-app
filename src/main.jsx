@@ -49,7 +49,7 @@ createRoot(root).render(
 // Service worker registration
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(error => {
+    navigator.serviceWorker.register('./sw.js').catch(error => {
       console.error('Service worker registration failed:', error)
       announcer.textContent = 'Offline mode is currently unavailable'
     })

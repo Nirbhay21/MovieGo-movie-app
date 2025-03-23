@@ -2,17 +2,31 @@ const CACHE_NAME = 'movie-app-v1'
 
 // Files to cache
 const STATIC_CACHE_URLS = [
-  '/',
-  '/index.html',
-  '/favicon.svg'
+  './',
+  './index.html',
+  './favicon.svg'
 ]
 
 // Install service worker
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(STATIC_CACHE_URLS))
+      .then(cache => {
+        // Add error handling for individual cache operations
+        return Promise.all(
+          STATIC_CACHE_URLS.map(url =>
+            cache.add(url).catch(error => {
+              console.error(`Failed to cache ${url}:`, error)
+              // Continue with other files even if one fails
+              return Promise.resolve()
+            })
+          )
+        )
+      })
       .then(() => self.skipWaiting())
+      .catch(error => {
+        console.error('Service Worker installation failed:', error)
+      })
   )
 })
 
@@ -59,7 +73,7 @@ self.addEventListener('fetch', event => {
           .catch(() => {
             // Fallback for offline HTML pages
             if (event.request.headers.get('accept').includes('text/html')) {
-              return caches.match('/')
+              return caches.match('./')
             }
           })
 
