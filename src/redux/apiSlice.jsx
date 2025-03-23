@@ -50,8 +50,12 @@ const baseQuery = fetchBaseQuery({
     prepareHeaders: (headers) => {
         headers.set("Authorization", `Bearer ${import.meta.env.VITE_API_ACCESS_TOKEN}`);
         headers.set('Accept', 'application/json');
+        headers.set('Origin', window.location.origin);
+        headers.set('Access-Control-Request-Method', 'GET');
         return headers;
     },
+    credentials: 'omit',
+    mode: 'cors',
     fetchFn: (...args) => {
         return fetch(...args).then(response => {
             if (response.status === 429) {

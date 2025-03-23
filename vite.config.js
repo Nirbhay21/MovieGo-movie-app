@@ -40,13 +40,14 @@ export default defineConfig({
   },
   server: {
     headers: {
-      'Content-Security-Policy': "script-src 'self' 'unsafe-inline' 'unsafe-eval'; object-src 'none';"
+      'Content-Security-Policy': "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;"
     },
     proxy: {
       '/api': {
         target: 'https://api.themoviedb.org/3',
         changeOrigin: true,
-        secure: false
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '') // Ensures /api is removed before forwarding
       }
     },
   },
