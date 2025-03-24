@@ -3,7 +3,7 @@ import { BACKDROP, FALLBACK_BACKDROP_IMAGE_SIZE, FALLBACK_IMAGE_BASE_URL, FALLBA
 import ErrorIndicator from "../components/ErrorIndicator";
 
 const API_BASE_URL = 'https://api.themoviedb.org/3';
-const API_KEY = import.meta.env.VITE_API_KEY;
+const API_ACCESS_TOKEN = import.meta.env.VITE_API_ACCESS_TOKEN;
 
 // Optimized cache durations based on data type
 const CACHE_DURATIONS = {
@@ -20,90 +20,45 @@ const handleApiError = (error) => {
     let message = 'Unknown error occurred';
     let retryable = true;
 
-    // Enhanced error handling with CORS and CORB specifics
     if (error?.status === 401) {
-        message = 'Authentication failed. Please try again later.';
+        message = 'Authentication failed. Please check your API access token.';
         retryable = false;
     } else if (error?.status === 403) {
-        message = 'Access denied. Please try again later.';
+        message = 'Access denied. Please check your API permissions.';
         retryable = false;
     } else if (error?.status === 429) {
         message = 'Too many requests. Please try again in a moment.';
         retryable = true;
     } else if (!navigator.onLine) {
-        message = 'No internet connection. Please check your network.';
+        message = 'No internet connection.';
         retryable = true;
-    } else if (error.name === 'NetworkError' || error.name === 'FetchError') {
-        message = 'Network error. Please check your connection.';
-        retryable = true;
-    } else if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-        message = 'CORS error: The request was blocked. Please check the API configuration.';
-        retryable = false;
-    } else if (error.message?.includes('CORB blocked')) {
-        message = 'Cross-Origin Read Blocking (CORB) error. Please ensure proper CORS headers are set.';
-        retryable = false;
     }
 
-    // Log the detailed error for debugging
-    // Log detailed error information for debugging
-    const errorDetails = {
-        type: error.name,
-        message: error.message,
-        status: error?.status,
-        endpoint: error?.endpoint,
-        headers: error?.headers,
-        retryable
-    };
-    console.error('[API Error]:', errorDetails);
-
-return { message, retryable };
+    console.error('[API Error]:', { error });
+    return { message, retryable };
 };
 
-// Configure base query with proper CORS handling
+// Base query with proper authorization
 const baseQuery = fetchBaseQuery({
     baseUrl: API_BASE_URL,
     prepareHeaders: (headers) => {
-        headers.set('Accept', 'application/json');
+        headers.set('Authorization', `Bearer ${API_ACCESS_TOKEN}`);
+        headers.set('accept', 'application/json');
         return headers;
-    },
-    paramsSerializer: (params) => {
-        const searchParams = new URLSearchParams();
-        searchParams.append('api_key', API_KEY);
-        Object.entries(params).forEach(([key, value]) => {
-            searchParams.append(key, value);
-        });
-        return searchParams.toString();
     }
 });
 
-// Enhanced query with retrying capability and error handling
+// Enhanced query with proper error handling
 const enhancedBaseQuery = async (args, api, extraOptions) => {
     try {
-        // Add common query parameters
-        const params = {
-            api_key: API_KEY,
-            language: 'en-US',
-            ...(typeof args === 'object' ? args.params : {})
-        };
-
-        const result = await baseQuery(
-            {
-                ...(typeof args === 'object' ? args : { url: args }),
-                params
-            },
-            api,
-            extraOptions
-        );
-
+        const result = await baseQuery(args, api, extraOptions);
+        
         if (result.error) {
-            return {
-                error: handleApiError({
-                    ...result.error,
-                    endpoint: typeof args === 'string' ? args : args.url
-                })
+            return { 
+                error: handleApiError(result.error)
             };
         }
-
+        
         return result;
     } catch (error) {
         return {
@@ -134,9 +89,9 @@ const addAccessibilityMetadata = (data, type = '') => {
 };
 
 export const api = createApi({
-    reducerPath: "api",
+    reducerPath: "tmdbApi",
     baseQuery: enhancedBaseQuery,
-    keepUnusedDataFor: 120,
+    keepUnusedDataFor: CACHE_DURATIONS.default,
     tagTypes: [
         "DiscoverMedia",
         "SearchMedia",
@@ -247,7 +202,7 @@ export const api = createApi({
         getDiscoverMedia: builder.query({
             query: ({ mediaType, pageNo }) => ({
                 url: `/discover/${mediaType}`,
-                params: { page: pageNo },
+                params: { page: pageNo }
             }),
             keepUnusedDataFor: CACHE_DURATIONS.default,
             serializeQueryArgs: ({ endpointName, queryArgs }) => {
@@ -276,7 +231,7 @@ export const api = createApi({
         searchMedia: builder.query({
             query: ({ query, pageNo }) => ({
                 url: "/search/multi",
-                params: { query, page: pageNo },
+                params: { query, page: pageNo }
             }),
             keepUnusedDataFor: CACHE_DURATIONS.search,
             serializeQueryArgs: ({ endpointName, queryArgs }) => {
@@ -305,7 +260,7 @@ export const api = createApi({
 
         getMediaDetails: builder.query({
             query: ({ mediaType, mediaId }) => ({
-                url: `/${mediaType}/${mediaId}`,
+                url: `/${mediaType}/${mediaId}`
             }),
             keepUnusedDataFor: CACHE_DURATIONS.details,
             providesTags: (result, error, { mediaType, mediaId }) => [
@@ -317,7 +272,7 @@ export const api = createApi({
 
         getMediaCredits: builder.query({
             query: ({ mediaType, mediaId }) => ({
-                url: `/${mediaType}/${mediaId}/credits`,
+                url: `/${mediaType}/${mediaId}/credits`
             }),
             keepUnusedDataFor: CACHE_DURATIONS.details,
             providesTags: (result, error, { mediaType, mediaId }) => [
@@ -348,7 +303,7 @@ export const api = createApi({
 
         getSimilarMedia: builder.query({
             query: ({ mediaType, mediaId }) => ({
-                url: `/${mediaType}/${mediaId}/similar`,
+                url: `/${mediaType}/${mediaId}/similar`
             }),
             keepUnusedDataFor: CACHE_DURATIONS.default,
             providesTags: (result, error, { mediaType, mediaId }) => [
@@ -359,7 +314,7 @@ export const api = createApi({
 
         getRecommendedMedia: builder.query({
             query: ({ mediaType, mediaId }) => ({
-                url: `/${mediaType}/${mediaId}/recommendations`,
+                url: `/${mediaType}/${mediaId}/recommendations`
             }),
             keepUnusedDataFor: CACHE_DURATIONS.default,
             providesTags: (result, error, { mediaType, mediaId }) => [
