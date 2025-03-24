@@ -1,6 +1,9 @@
-import { createApi, fetchBaseQuery, retry } from "@reduxjs/toolkit/query/react";
+import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { BACKDROP, FALLBACK_BACKDROP_IMAGE_SIZE, FALLBACK_IMAGE_BASE_URL, FALLBACK_POSTER_IMAGE_SIZE, FALLBACK_PROFILE_IMAGE_SIZE, POSTER, PROFILE } from "../config/constants";
 import ErrorIndicator from "../components/ErrorIndicator";
+
+const API_BASE_URL = 'https://api.themoviedb.org/3';
+const API_KEY = import.meta.env.VITE_API_KEY;
 
 // Optimized cache durations based on data type
 const CACHE_DURATIONS = {
@@ -56,146 +59,58 @@ const handleApiError = (error) => {
 return { message, retryable };
 };
 
-// Optimized base query with CORS and network handling
-const API_BASE_URL = 'https://api.themoviedb.org/3';
-
+// Configure base query with proper CORS handling
 const baseQuery = fetchBaseQuery({
     baseUrl: API_BASE_URL,
     prepareHeaders: (headers) => {
-        headers.set('Authorization', `Bearer ${import.meta.env.VITE_API_ACCESS_TOKEN}`);
+        headers.set('Accept', 'application/json');
         return headers;
     },
-    fetchFn: async (input, init) => {
-        try {
-            // Handle both string and object inputs
-            const inputUrl = typeof input === 'string' ? input : input.url;
-            if (!inputUrl) {
-                throw new Error('Invalid request: URL is missing');
-            }
-
-            // Get API authentication details with enhanced error logging
-            const credentials = {
-                apiKey: import.meta.env.VITE_API_KEY || '',
-                accessToken: import.meta.env.VITE_API_ACCESS_TOKEN || ''
-            };
-
-            // Log environment info in development
-            if (import.meta.env.DEV) {
-                console.debug('Environment:', {
-                    mode: import.meta.env.MODE,
-                    hasApiKey: Boolean(credentials.apiKey),
-                    hasAccessToken: Boolean(credentials.accessToken)
-                });
-            }
-
-            if (!credentials.apiKey || !credentials.accessToken) {
-                const error = new Error(
-                    'API credentials not found. Ensure VITE_API_KEY and VITE_API_ACCESS_TOKEN are set in your environment.'
-                );
-                console.error('API Authentication Error:', error);
-                throw error;
-            }
-
-            // Create full URL with API key
-            let fullUrl;
-            try {
-                fullUrl = new URL(
-                    inputUrl.startsWith('http') ? inputUrl : `${API_BASE_URL}${inputUrl}`
-                );
-                fullUrl.searchParams.set('api_key', credentials.apiKey);
-                fullUrl.searchParams.set('language', 'en-US');
-            } catch (urlError) {
-                throw new Error(`Invalid URL format: ${urlError.message}`);
-            }
-
-            // Set up request options with authentication
-            const initOptions = {
-                ...init,
-                headers: {
-                    ...(init?.headers || {}),
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${credentials.accessToken}`,
-                    'Origin': window.location.origin,
-                    'Sec-Fetch-Site': 'cross-site',
-                    'Sec-Fetch-Mode': 'cors',
-                    'Sec-Fetch-Dest': 'empty'
-                },
-                mode: 'cors',
-                credentials: 'omit',
-                referrerPolicy: 'strict-origin-when-cross-origin'
-            };
-
-            const response = await fetch(fullUrl, initOptions);
-
-            // Enhanced error handling with detailed feedback
-            if (response.status === 401) {
-                throw new Error('Authentication failed. Please check your API access token.');
-            }
-
-            if (response.status === 403) {
-                throw new Error('Access forbidden. Please verify your API key permissions.');
-            }
-
-            if (response.status === 429) {
-                console.warn('Rate limit exceeded, retrying after delay...');
-                return new Promise(resolve => setTimeout(() => resolve(response), 2000));
-            }
-
-            if (!response.ok) {
-                const errorBody = await response.json().catch(() => ({}));
-                throw new Error(
-                    errorBody.status_message ||
-                    `API Error (${response.status}): ${response.statusText}`
-                );
-            }
-
-            return response;
-        } catch (error) {
-            console.error('API Request failed:', error);
-            throw error;
-        }
+    paramsSerializer: (params) => {
+        const searchParams = new URLSearchParams();
+        searchParams.append('api_key', API_KEY);
+        Object.entries(params).forEach(([key, value]) => {
+            searchParams.append(key, value);
+        });
+        return searchParams.toString();
     }
 });
 
-// Enhanced query with optimized retry logic
-const enhancedBaseQuery = retry(async (args, api, extraOptions) => {
+// Enhanced query with retrying capability and error handling
+const enhancedBaseQuery = async (args, api, extraOptions) => {
     try {
-        if (typeof args === "object") {
-            args.params = {
-                ...(args.params || {}),
-                include_adult: false,
-                language: "en-US"
-            };
-        }
+        // Add common query parameters
+        const params = {
+            api_key: API_KEY,
+            language: 'en-US',
+            ...(typeof args === 'object' ? args.params : {})
+        };
 
-        const result = await baseQuery(args, api, extraOptions);
+        const result = await baseQuery(
+            {
+                ...(typeof args === 'object' ? args : { url: args }),
+                params
+            },
+            api,
+            extraOptions
+        );
 
         if (result.error) {
-            const error = handleApiError({
-                ...result.error,
-                endpoint: typeof args === 'string' ? args : args.url
-            });
-            
-            if (!error.retryable) {
-                retry.fail(result.error);
-            }
-            
-            return { error };
+            return {
+                error: handleApiError({
+                    ...result.error,
+                    endpoint: typeof args === 'string' ? args : args.url
+                })
+            };
         }
 
         return result;
     } catch (error) {
-        const handled = handleApiError(error);
-        if (!handled.retryable) {
-            retry.fail(error);
-        }
-        return { error: handled };
+        return {
+            error: handleApiError(error)
+        };
     }
-}, {
-    maxRetries: 3,
-    backoff: attempt => Math.min(1000 * (2 ** attempt), 30000)
-});
+};
 
 // Rest of your code remains the same...
 const addAccessibilityMetadata = (data, type = '') => {

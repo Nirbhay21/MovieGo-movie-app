@@ -39,7 +39,14 @@ export default defineConfig({
     }
   },
   server: {
+    cors: {
+      origin: '*',
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+      credentials: true
+    },
     headers: {
+      'Access-Control-Allow-Origin': '*',
       'Content-Security-Policy': "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;"
     },
   },
