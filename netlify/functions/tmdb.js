@@ -1,18 +1,23 @@
 import { env } from 'node:process';
 
 export const handler = async (event) => {
-  // CORS headers
-  const corsHeaders = {
+  // Enhanced security headers
+  const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS'
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Content-Type': 'application/json',
+    'X-Content-Type-Options': 'nosniff',
+    'Cross-Origin-Resource-Policy': 'cross-origin',
+    'Cross-Origin-Embedder-Policy': 'require-corp',
+    'Cross-Origin-Opener-Policy': 'same-origin'
   };
 
   // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 204,
-      headers: corsHeaders
+      headers
     };
   }
 
@@ -20,7 +25,7 @@ export const handler = async (event) => {
   if (event.httpMethod !== 'GET') {
     return {
       statusCode: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         error: 'Method not allowed',
         message: 'Only GET requests are supported'
@@ -34,7 +39,7 @@ export const handler = async (event) => {
     console.error('TMDB API key not configured');
     return {
       statusCode: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         error: 'Internal Server Error',
         message: 'API configuration error'
@@ -49,9 +54,6 @@ export const handler = async (event) => {
       .replace(/^\/api\/tmdb\/?/, '')
       .replace(/^\//, '');
 
-    console.log('Original path:', event.path);
-    console.log('Processed path:', path);
-
     // Construct TMDB API URL
     const url = new URL(`https://api.themoviedb.org/3/${path}`);
 
@@ -61,8 +63,6 @@ export const handler = async (event) => {
         url.searchParams.append(key, value);
       });
     }
-
-    console.log('TMDB API request URL:', url.toString());
 
     // Make request to TMDB API
     const response = await fetch(url.toString(), {
@@ -87,7 +87,7 @@ export const handler = async (event) => {
 
     return {
       statusCode: response.status,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(data)
     };
   } catch (error) {
@@ -99,7 +99,7 @@ export const handler = async (event) => {
 
     return {
       statusCode: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         error: 'Internal Server Error',
         message: error.message,
