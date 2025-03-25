@@ -1,10 +1,7 @@
 import { env } from 'node:process';
 
-/**
- * Netlify function handler for TMDB API proxy
- */
 export const handler = async (event) => {
-  // Enable CORS
+  // CORS headers
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -19,7 +16,7 @@ export const handler = async (event) => {
     };
   }
 
-  // Only allow GET requests
+  // Validate HTTP method
   if (event.httpMethod !== 'GET') {
     return {
       statusCode: 405,
@@ -31,9 +28,8 @@ export const handler = async (event) => {
     };
   }
 
-  const path = event.path.replace('/.netlify/functions/tmdb/', '');
+  // Get API key
   const apiKey = env.VITE_API_ACCESS_TOKEN;
-
   if (!apiKey) {
     console.error('TMDB API key not configured');
     return {
@@ -47,9 +43,18 @@ export const handler = async (event) => {
   }
 
   try {
-    console.log('Proxying request to:', path);
+    // Extract path and ensure leading slash is removed
+    const path = event.path
+      .replace(/^\/\.netlify\/functions\/tmdb\/?/, '')
+      .replace(/^\/api\/tmdb\/?/, '')
+      .replace(/^\//, '');
+
+    console.log('Original path:', event.path);
+    console.log('Processed path:', path);
+
+    // Construct TMDB API URL
     const url = new URL(`https://api.themoviedb.org/3/${path}`);
-    
+
     // Add query parameters
     if (event.queryStringParameters) {
       Object.entries(event.queryStringParameters).forEach(([key, value]) => {
@@ -57,9 +62,10 @@ export const handler = async (event) => {
       });
     }
 
-    console.log('Full URL:', url.toString());
+    console.log('TMDB API request URL:', url.toString());
 
-    const response = await fetch(url, {
+    // Make request to TMDB API
+    const response = await fetch(url.toString(), {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Accept': 'application/json'
@@ -73,25 +79,31 @@ export const handler = async (event) => {
       console.error('TMDB API Error:', {
         status: response.status,
         statusText: response.statusText,
-        data
+        path: path,
+        url: url.toString(),
+        data: data
       });
     }
 
-    // Return TMDB API response
     return {
       statusCode: response.status,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     };
   } catch (error) {
-    console.error('TMDB Proxy Error:', error);
+    console.error('TMDB Proxy Error:', {
+      error: error.message,
+      stack: error.stack,
+      path: event.path
+    });
+
     return {
       statusCode: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         error: 'Internal Server Error',
-        message: 'Failed to fetch data',
-        details: error.message
+        message: error.message,
+        path: event.path
       })
     };
   }
