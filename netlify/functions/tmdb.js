@@ -29,7 +29,7 @@ export const handler = async (event) => {
   }
 
   const path = event.path.replace('/.netlify/functions/tmdb', '');
-  const apiKey = env.TMDB_API_ACCESS_TOKEN;
+  const apiKey = env.VITE_API_ACCESS_TOKEN;
 
   // API key validation
   if (!apiKey) {
