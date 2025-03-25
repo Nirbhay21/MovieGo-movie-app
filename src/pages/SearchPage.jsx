@@ -19,6 +19,7 @@ const SearchPage = () => {
     const [pageNo, setPageNo] = useState(1);
     const [searchQuery, setSearchQuery] = useState(formattedSearchQuery);
     const [skeletonCardsCount, setSkeletonCardsCount] = useState(18);
+    const debounceTimerRef = useRef(null);
     const isFetching = useRef(false);
 
     const {
@@ -28,16 +29,15 @@ const SearchPage = () => {
         isError: isSearchResultsError,
         isSuccess: isSearchResultsSuccess,
         isFetching: isSearchResultsFetching
-    } = useSearchMediaQuery({ query: searchQuery, pageNo: pageNo }, {
+    } = useSearchMediaQuery({ query: formattedSearchQuery, pageNo: pageNo }, {
         selectFromResult: (response) => ({
             searchedResults: response?.data?.results,
             totalPageNo: response?.data?.total_pages,
             error: response.error,
             ...response
         }),
+        skip: !formattedSearchQuery.trim()
     });
-
-    console.log(searchQuery);
 
     const { imageBaseURL } = useGetImageBaseURLQuery({ imageFor: POSTER }, {
         selectFromResult: ({ data, ...rest }) => ({
@@ -57,17 +57,26 @@ const SearchPage = () => {
         }
     }, [pageNo, totalPageNo]);
 
+    const handleSearch = useCallback((event) => {
+        const value = event.target.value;
+        setSearchQuery(value);
+        
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = setTimeout(() => {
+            navigate(`/search?q=${value.trim()}`);
+        }, 300);
+    }, [navigate]);
+
     useEffect(() => {
         setSearchQuery(formattedSearchQuery);
     }, [formattedSearchQuery]);
 
+    // Cleanup debounce timer
     useEffect(() => {
-        navigate(`/search?q=${searchQuery.trim()}`);
-    }, [searchQuery, navigate]);
-
-    const handleSearch = (event) => {
-        setSearchQuery(event.target.value);
-    }
+        return () => {
+            clearTimeout(debounceTimerRef.current);
+        };
+    }, []);
 
     useEffect(() => {
         isFetching.current = false;

@@ -69,8 +69,14 @@ function App() {
           </LoadingBoundary>
         </Suspense>
 
-        {/* Basic scroll restoration */}
-        <ScrollRestoration />
+        {/* Enhanced scroll restoration */}
+        <ScrollRestoration
+          getKey={(location) => {
+            // Keep route-specific scroll position by including the full pathname and search params
+            const searchParams = new URLSearchParams(location.search);
+            return `${location.pathname}${searchParams.get('q') ? '?q=' + searchParams.get('q') : ''}`;
+          }}
+        />
 
         {/* Live region for important announcements */}
         <div aria-live="assertive" aria-atomic="true" className="sr-only">
