@@ -4,6 +4,11 @@
   functions = "netlify/functions"
 
 [[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
   from = "/api/tmdb/*"
   to = "/.netlify/functions/tmdb/:splat"
   status = 200
