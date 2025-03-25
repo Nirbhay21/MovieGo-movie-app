@@ -1,5 +1,5 @@
 import { configureStore } from "@reduxjs/toolkit";
-import { api } from "./apiSlice";
+import { api } from "./apiSlice.jsx";
 
 /**
  * Configure Redux store with performance optimizations.
@@ -10,14 +10,10 @@ const store = configureStore({
     reducer: {
         [api.reducerPath]: api.reducer,
     },
-    middleware: (getDefaultMiddleware) => {
-        const middleware = getDefaultMiddleware({
-            // Optimizations for development environment
-            immutableCheck: import.meta.env.DEV,
-            serializableCheck: import.meta.env.DEV,
-        });
-        return middleware.concat(api.middleware);
-    },
+    middleware: (getDefaultMiddleware) => getDefaultMiddleware({
+        immutableCheck: import.meta.env.DEV,
+        serializableCheck: import.meta.env.DEV,
+    }).concat(api.middleware),
     devTools: import.meta.env.DEV, // Enable DevTools only in development
 });
 

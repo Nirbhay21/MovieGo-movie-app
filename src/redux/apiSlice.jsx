@@ -1,9 +1,8 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { BACKDROP, FALLBACK_BACKDROP_IMAGE_SIZE, FALLBACK_IMAGE_BASE_URL, FALLBACK_POSTER_IMAGE_SIZE, FALLBACK_PROFILE_IMAGE_SIZE, POSTER, PROFILE } from "../config/constants";
-import ErrorIndicator from "../components/ErrorIndicator";
 
-const API_BASE_URL = 'https://api.themoviedb.org/3';
-const API_ACCESS_TOKEN = import.meta.env.VITE_API_ACCESS_TOKEN;
+// Using the redirect path instead of direct function path
+const API_BASE_URL = '/api/tmdb';
 
 // Optimized cache durations based on data type
 const CACHE_DURATIONS = {
@@ -15,10 +14,21 @@ const CACHE_DURATIONS = {
     default: 120         // Default - 2 minutes
 };
 
-// Enhanced error handler with network-specific handling
+// Enhanced error handler with detailed logging
 const handleApiError = (error) => {
     let message = 'Unknown error occurred';
     let retryable = true;
+
+    console.error('[API Error Details]:', {
+        status: error?.status,
+        statusText: error?.statusText,
+        data: error?.data,
+        error: error?.error,
+        headers: error?.headers,
+        url: error?.url,
+        type: error?.type,
+        originalError: error
+    });
 
     if (error?.status === 401) {
         message = 'Authentication failed. Please check your API access token.';
@@ -34,17 +44,14 @@ const handleApiError = (error) => {
         retryable = true;
     }
 
-    console.error('[API Error]:', { error });
-    return { message, retryable };
+    return { message, retryable, details: error };
 };
 
-// Base query with proper authorization
+// Simplified base query configuration
 const baseQuery = fetchBaseQuery({
     baseUrl: API_BASE_URL,
-    prepareHeaders: (headers) => {
-        headers.set('Authorization', `Bearer ${API_ACCESS_TOKEN}`);
-        headers.set('accept', 'application/json');
-        return headers;
+    headers: {
+        'Accept': 'application/json'
     }
 });
 
@@ -193,7 +200,12 @@ export const api = createApi({
         }),
 
         getOnAirTvShows: builder.query({
-            query: () => "/tv/on_the_air",
+            query: () => ({
+                url: '/tv/on_the_air',
+                params: {
+                    language: 'en-US'
+                }
+            }),
             keepUnusedDataFor: CACHE_DURATIONS.default,
             providesTags: ['OnAirTvShows'],
             transformResponse: (response) => addAccessibilityMetadata(response, 'TV shows on air')
