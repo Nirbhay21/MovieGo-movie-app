@@ -105,7 +105,7 @@ const SearchPage = () => {
                 {searchQuery.trim() ? (
                     <>
                         <h2 className='my-3 px-4 text-lg font-semibold capitalize sm:px-0 lg:mx-1 lg:text-2xl'>Search Results</h2>
-                        <div className='grid grid-cols-[repeat(auto-fit,14.5rem)] justify-center gap-6 lg:justify-start'>
+                        <div className='grid grid-cols-[repeat(auto-fit,14.5rem)] justify-center gap-6 lg:justify-center'>
                             {isSearchResultsError ? (
                                 <div className="col-span-full flex min-h-[60vh] items-center justify-center">
                                     <ErrorIndicator error={error} />
